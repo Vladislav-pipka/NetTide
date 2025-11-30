@@ -1,4 +1,4 @@
-# nettide
+# NetTide
 
 A new Flutter project.
 
