@@ -8,6 +8,8 @@ import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
+import android.content.pm.ServiceInfo
 
 class BlackholeVpnService : VpnService() {
 
@@ -46,7 +48,17 @@ class BlackholeVpnService : VpnService() {
             .setContentIntent(pendingIntent)
             .build()
 
-        startForeground(1, notification)
+        val NOTIF_ID = 1
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) { // Android 14 is API 34, which is UPSIDE_DOWN_CAKE
+            ServiceCompat.startForeground(
+                this,
+                NOTIF_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
+            )
+        } else {
+            startForeground(NOTIF_ID, notification)
+        }
 
         // Start the VPN
         vpnInterface = Builder()
