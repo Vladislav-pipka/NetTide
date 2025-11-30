@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/country.dart';
 import '../models/operator.dart';
 import '../providers/settings_provider.dart';
+import '../translations.dart';
 
 class OperatorsScreen extends ConsumerWidget {
   final Country country;
@@ -20,34 +21,35 @@ class OperatorsScreen extends ConsumerWidget {
   }
 
   void _showEditPriceDialog(BuildContext context, WidgetRef ref, Operator operator) {
+    final l10n = AppLocalizations.of(context)!;
     final TextEditingController controller = TextEditingController();
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Edit Price for ${operator.name}'),
+          title: Text('${l10n.translate('editPriceFor')} ${operator.name}'),
           content: TextField(
             controller: controller,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              hintText: 'Enter new price per MB',
-              prefixText: '',
+            decoration: InputDecoration(
+              hintText: l10n.translate('enterNewPricePerMB'),
+              prefixText: '\$',
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l10n.translate('cancel')),
             ),
             TextButton(
               onPressed: () {
                 final newPrice = double.tryParse(controller.text);
                 if (newPrice != null) {
-                  ref.read(settingsProvider.notifier).setOperatorPrice(operator.name, newPrice);
+                  ref.read(settingsProvider.notifier).setOperatorPrice(operator.uniqueId, newPrice);
                 }
                 Navigator.of(context).pop();
               },
-              child: const Text('Save'),
+              child: Text(l10n.translate('save')),
             ),
           ],
         );
@@ -57,14 +59,15 @@ class OperatorsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsProvider);
-    final operatorNames = country.operators.map((op) => op.name).toList();
+    final settingsState = ref.watch(settingsProvider);
+    final operatorUniqueIds = country.operators.map((op) => op.uniqueId).toList();
+    final l10n = AppLocalizations.of(context)!;
 
-    final isCountryEnabled = operatorNames.any((name) => settings[name]?.isEnabled ?? true);
+    final isCountryEnabled = operatorUniqueIds.any((id) => settingsState.operatorSettings[id]?.isEnabled ?? true);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(country.name),
+        title: Text(l10n.translate(country.name.trim())),
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(8.0),
@@ -72,17 +75,17 @@ class OperatorsScreen extends ConsumerWidget {
         itemBuilder: (context, index) {
           if (index == 0) {
             return Card(
-              color: isCountryEnabled ? Colors.white : Colors.grey[300],
+              color: isCountryEnabled ? Colors.white : Colors.grey[400],
               margin: const EdgeInsets.symmetric(vertical: 8.0),
               child: SwitchListTile(
                 contentPadding: const EdgeInsets.all(12.0),
                 title: Text(
-                  isCountryEnabled ? 'All Enabled' : 'All Disabled',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  isCountryEnabled ? l10n.translate('disableAll') : l10n.translate('enableAll'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black),
                 ),
                 value: isCountryEnabled,
                 onChanged: (bool value) {
-                  ref.read(settingsProvider.notifier).setCountryEnabled(operatorNames, value);
+                  ref.read(settingsProvider.notifier).setCountryEnabled(operatorUniqueIds, value);
                 },
                 activeColor: Colors.green,
               ),
@@ -90,15 +93,16 @@ class OperatorsScreen extends ConsumerWidget {
           }
 
           final operator = country.operators[index - 1];
-          final operatorSetting = settings[operator.name];
+          final operatorSetting = settingsState.operatorSettings[operator.uniqueId];
           final isEnabled = operatorSetting?.isEnabled ?? true;
           final price = operatorSetting?.customPrice ?? operator.pricePerMb;
 
           return Card(
+            color: isEnabled ? Colors.white : Colors.grey[400],
             margin: const EdgeInsets.symmetric(vertical: 8.0),
             child: CheckboxListTile(
               contentPadding: const EdgeInsets.all(12.0),
-              title: Text(operator.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(operator.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Column(
@@ -107,8 +111,8 @@ class OperatorsScreen extends ConsumerWidget {
                     GestureDetector(
                       onTap: () => _showEditPriceDialog(context, ref, operator),
                       child: Text(
-                        'Price: \$${price.toStringAsFixed(2)}/MB (tap to edit)',
-                        style: TextStyle(color: operatorSetting?.customPrice != null ? Colors.purple : Colors.black),
+                        '${l10n.translate('price')}: \$${price.toStringAsFixed(2)}/MB (${l10n.translate('tapToEdit')})',
+                        style: const TextStyle(color: Colors.black),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -116,7 +120,7 @@ class OperatorsScreen extends ConsumerWidget {
                       onTap: () => _launchURL(context, operator.url),
                       child: Text(
                         operator.url,
-                        style: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
+                        style: const TextStyle(color: Colors.black, decoration: TextDecoration.underline),
                       ),
                     ),
                   ],
@@ -124,7 +128,7 @@ class OperatorsScreen extends ConsumerWidget {
               ),
               value: isEnabled,
               onChanged: (bool? value) {
-                ref.read(settingsProvider.notifier).setOperatorEnabled(operator.name, value ?? true);
+                ref.read(settingsProvider.notifier).setOperatorEnabled(operator.uniqueId, value ?? true);
               },
               activeColor: Colors.green,
             ),

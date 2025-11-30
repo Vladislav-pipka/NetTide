@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../translations.dart';
 import '../providers/notification_provider.dart';
 import '../providers/theme_provider.dart';
+import 'language_selection_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -10,17 +12,17 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final showNotification = ref.watch(notificationSettingsProvider);
     final themeMode = ref.watch(themeProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(l10n.translate('settings')),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
           SwitchListTile(
-            title: const Text('Show Persistent Notification'),
-            subtitle: const Text('Keeps you informed about the protection status.'),
+            title: Text(l10n.translate('showPersistentNotification')),
             value: showNotification,
             onChanged: (value) {
               ref.read(notificationSettingsProvider.notifier).setShowNotification(value);
@@ -28,19 +30,21 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const Divider(),
           ListTile(
-            title: Text(themeMode == ThemeMode.dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'),
+            title: Text(themeMode == ThemeMode.dark ? l10n.translate('switchToLightMode') : l10n.translate('switchToDarkMode')),
             trailing: Icon(themeMode == ThemeMode.dark ? Icons.light_mode : Icons.dark_mode),
             onTap: () {
               ref.read(themeProvider.notifier).toggleTheme();
             },
           ),
           const Divider(),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Warning: Disabling the persistent notification may cause the Android system to stop the background service to save memory. This can leave you unprotected without you knowing. It is highly recommended to keep this enabled.',
-              style: TextStyle(color: Colors.red.shade700, fontStyle: FontStyle.italic),
-            ),
+          ListTile(
+            title: Text(l10n.translate('changeLanguage')),
+            trailing: const Icon(Icons.language),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const LanguageSelectionScreen()),
+              );
+            },
           ),
         ],
       ),

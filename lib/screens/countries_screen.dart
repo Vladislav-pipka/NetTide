@@ -1,8 +1,8 @@
-
 import 'package:flutter/material.dart';
 import '../models/country.dart';
 import '../models/region.dart';
 import 'operators_screen.dart';
+import '../translations.dart';
 
 class CountriesScreen extends StatefulWidget {
   final Region region;
@@ -28,7 +28,8 @@ class _CountriesScreenState extends State<CountriesScreen> {
     final query = _searchController.text.toLowerCase();
     setState(() {
       _filteredCountries = widget.region.countries.where((country) {
-        return country.name.toLowerCase().contains(query);
+        final translatedCountryName = AppLocalizations.of(context)!.translate(country.name.trim()).toLowerCase();
+        return translatedCountryName.contains(query);
       }).toList();
     });
   }
@@ -41,9 +42,10 @@ class _CountriesScreenState extends State<CountriesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.region.name),
+        title: Text(l10n.translate(widget.region.name.trim())),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(kToolbarHeight),
           child: Padding(
@@ -51,7 +53,7 @@ class _CountriesScreenState extends State<CountriesScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search for a country...',
+                hintText: l10n.translate('searchForACountry'),
                 fillColor: Colors.white,
                 filled: true,
                 border: OutlineInputBorder(
@@ -73,7 +75,7 @@ class _CountriesScreenState extends State<CountriesScreen> {
             margin: const EdgeInsets.symmetric(vertical: 8.0),
             child: ListTile(
               contentPadding: const EdgeInsets.all(16.0),
-              title: Text(country.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(l10n.translate(country.name.trim()), style: const TextStyle(fontWeight: FontWeight.bold)),
               trailing: const Icon(Icons.arrow_forward_ios),
               onTap: () {
                 Navigator.of(context).push(

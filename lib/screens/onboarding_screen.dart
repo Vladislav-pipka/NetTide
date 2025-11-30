@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import '../providers/operator_guard_provider.dart';
+import '../translations.dart';
 import 'home_screen.dart';
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
 
   @override
   _OnboardingScreenState createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final controller = PageController();
   bool isLastPage = false;
 
@@ -22,6 +25,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -34,20 +39,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               buildPage(
                 color: Colors.blue.shade100,
                 icon: Icons.search,
-                title: 'Find and Block',
-                subtitle: 'Easily find any country and disable specific mobile operators to avoid unwanted roaming charges.',
+                title: l10n.translate('onboarding1Title'),
+                subtitle: l10n.translate('onboarding1Subtitle'),
               ),
               buildPage(
                 color: Colors.orange.shade100,
                 icon: Icons.edit,
-                title: 'Editable Prices',
-                subtitle: 'Operator prices are for guidance only and may not be exact. Tap on any price to enter the correct rate from your operator.',
+                title: l10n.translate('onboarding2Title'),
+                subtitle: l10n.translate('onboarding2Subtitle'),
               ),
               buildPage(
                 color: Colors.green.shade100,
                 icon: Icons.shield,
-                title: 'Full Control',
-                subtitle: 'Use the buttons to disable all expensive networks based on your prices, or disable all countries at once for complete peace of mind.',
+                title: l10n.translate('onboarding3Title'),
+                subtitle: l10n.translate('onboarding3Subtitle'),
               ),
             ],
           ),
@@ -67,11 +72,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         backgroundColor: Colors.teal,
                         minimumSize: const Size.fromHeight(60),
                       ),
-                      child: const Text('Get Started', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                      child: Text(l10n.translate('getStarted'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                       onPressed: () async {
                         final prefs = await SharedPreferences.getInstance();
-                        prefs.setBool('showHome', true);
+                        await prefs.setBool('showHome', true);
 
+                        if (!mounted) return;
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(builder: (context) => const HomeScreen()),
                         );
@@ -84,7 +90,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        TextButton(onPressed: () => controller.jumpToPage(2), child: const Text('SKIP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                        TextButton(onPressed: () => controller.jumpToPage(2), child: Text(l10n.translate('skip'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
                         Center(
                           child: SmoothPageIndicator(
                             controller: controller,
@@ -101,7 +107,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             ),
                           ),
                         ),
-                        TextButton(onPressed: () => controller.nextPage(duration: const Duration(milliseconds: 500), curve: Curves.easeInOut), child: const Text('NEXT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                        TextButton(onPressed: () => controller.nextPage(duration: const Duration(milliseconds: 500), curve: Curves.easeInOut), child: Text(l10n.translate('next'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
                       ],
                     ),
                   ),

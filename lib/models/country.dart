@@ -10,7 +10,7 @@ class Country {
 
   factory Country.fromJson(Map<String, dynamic> json) {
     var operatorList = json['operators'] as List? ?? [];
-    List<Operator> operators = operatorList.map((i) => Operator.fromJson(i)).toList();
+    List<Operator> operators = operatorList.map((i) => Operator.fromJson(i, json['country_code'] as String? ?? '')).toList();
 
     return Country(
       name: json['name'] as String? ?? 'Unknown Country',

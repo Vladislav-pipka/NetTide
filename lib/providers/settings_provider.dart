@@ -1,7 +1,7 @@
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Data class for a single operator's settings
 class OperatorSetting {
   final bool isEnabled;
   final double? customPrice;
@@ -9,10 +9,24 @@ class OperatorSetting {
   OperatorSetting({this.isEnabled = true, this.customPrice});
 }
 
-class SettingsNotifier extends StateNotifier<Map<String, OperatorSetting>> {
-  final MethodChannel _channel = const MethodChannel('com.example.nettide/network');
+// State class holding all app settings
+class SettingsState {
+  final Map<String, OperatorSetting> operatorSettings;
 
-  SettingsNotifier() : super({}) {
+  SettingsState({required this.operatorSettings});
+
+  SettingsState copyWith({
+    Map<String, OperatorSetting>? operatorSettings,
+  }) {
+    return SettingsState(
+      operatorSettings: operatorSettings ?? this.operatorSettings,
+    );
+  }
+}
+
+// Notifier to manage and persist settings
+class SettingsNotifier extends StateNotifier<SettingsState> {
+  SettingsNotifier() : super(SettingsState(operatorSettings: {})) {
     _loadSettings();
   }
 
@@ -22,78 +36,68 @@ class SettingsNotifier extends StateNotifier<Map<String, OperatorSetting>> {
     final Map<String, OperatorSetting> settings = {};
     for (String key in keys) {
       if (key.startsWith('op_enabled_')) {
-        final operatorName = key.substring(11);
+        final uniqueId = key.substring(11);
         final isEnabled = prefs.getBool(key) ?? true;
-        final customPrice = prefs.getDouble('op_price_$operatorName');
-        settings[operatorName] = OperatorSetting(isEnabled: isEnabled, customPrice: customPrice);
+        final customPrice = prefs.getDouble('op_price_$uniqueId');
+        settings[uniqueId] = OperatorSetting(isEnabled: isEnabled, customPrice: customPrice);
       }
     }
-    state = settings;
-    _updateBlockedOperators();
+    state = state.copyWith(operatorSettings: settings);
   }
 
-  void setOperatorEnabled(String operatorName, bool isEnabled) async {
+  void setOperatorEnabled(String uniqueId, bool isEnabled) async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setBool('op_enabled_$operatorName', isEnabled);
-    state = {
-      ...state,
-      operatorName: OperatorSetting(
+    await prefs.setBool('op_enabled_$uniqueId', isEnabled);
+    final newSettings = {
+      ...state.operatorSettings,
+      uniqueId: OperatorSetting(
         isEnabled: isEnabled,
-        customPrice: state[operatorName]?.customPrice,
+        customPrice: state.operatorSettings[uniqueId]?.customPrice,
       ),
     };
-    _updateBlockedOperators();
+    state = state.copyWith(operatorSettings: newSettings);
   }
 
-  void setOperatorPrice(String operatorName, double price) async {
+  void setOperatorPrice(String uniqueId, double price) async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setDouble('op_price_$operatorName', price);
-    state = {
-      ...state,
-      operatorName: OperatorSetting(
-        isEnabled: state[operatorName]?.isEnabled ?? true,
+    await prefs.setDouble('op_price_$uniqueId', price);
+    final newSettings = {
+      ...state.operatorSettings,
+      uniqueId: OperatorSetting(
+        isEnabled: state.operatorSettings[uniqueId]?.isEnabled ?? true,
         customPrice: price,
       ),
     };
+    state = state.copyWith(operatorSettings: newSettings);
   }
 
-  void setCountryEnabled(List<String> operatorNames, bool isEnabled) async {
+  void setCountryEnabled(List<String> operatorUniqueIds, bool isEnabled) async {
     final prefs = await SharedPreferences.getInstance();
-    Map<String, OperatorSetting> updatedSettings = {...state};
-    for (var name in operatorNames) {
-      prefs.setBool('op_enabled_$name', isEnabled);
-      updatedSettings[name] = OperatorSetting(
+    Map<String, OperatorSetting> updatedSettings = {...state.operatorSettings};
+    for (var id in operatorUniqueIds) {
+      await prefs.setBool('op_enabled_$id', isEnabled);
+      updatedSettings[id] = OperatorSetting(
         isEnabled: isEnabled,
-        customPrice: state[name]?.customPrice,
+        customPrice: state.operatorSettings[id]?.customPrice,
       );
     }
-    state = updatedSettings;
-    _updateBlockedOperators();
+    state = state.copyWith(operatorSettings: updatedSettings);
   }
 
-  void setAllOperatorsEnabled(List<String> allOperatorNames, bool isEnabled) async {
+  void setAllOperatorsEnabled(List<String> allOperatorUniqueIds, bool isEnabled) async {
     final prefs = await SharedPreferences.getInstance();
-    Map<String, OperatorSetting> updatedSettings = {...state};
-    for (var name in allOperatorNames) {
-      prefs.setBool('op_enabled_$name', isEnabled);
-      updatedSettings[name] = OperatorSetting(
+    Map<String, OperatorSetting> updatedSettings = {...state.operatorSettings};
+    for (var id in allOperatorUniqueIds) {
+      await prefs.setBool('op_enabled_$id', isEnabled);
+      updatedSettings[id] = OperatorSetting(
         isEnabled: isEnabled,
-        customPrice: state[name]?.customPrice,
+        customPrice: state.operatorSettings[id]?.customPrice,
       );
     }
-    state = updatedSettings;
-    _updateBlockedOperators();
-  }
-
-  void _updateBlockedOperators() {
-    final blockedOperators = state.entries
-        .where((entry) => !entry.value.isEnabled)
-        .map((entry) => entry.key)
-        .toList();
-    _channel.invokeMethod('setBlockedOperators', {'blockedOperators': blockedOperators});
+    state = state.copyWith(operatorSettings: updatedSettings);
   }
 }
 
-final settingsProvider = StateNotifierProvider<SettingsNotifier, Map<String, OperatorSetting>>((ref) {
+final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
   return SettingsNotifier();
 });

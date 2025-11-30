@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../translations.dart';
 import '../models/country.dart';
 import '../providers/data_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/operator_guard_provider.dart';
 import 'operators_screen.dart';
-
-
 
 import 'settings_screen.dart';
 import 'faq_screen.dart';
+import 'modified_countries_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -28,17 +29,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final allCountries = ref.watch(allCountriesProvider);
-    final filteredCountries = allCountries
-        .where((country) => country.name.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
+    final l10n = AppLocalizations.of(context)!;
+    final settingsState = ref.watch(settingsProvider);
+    final operatorGuard = ref.watch(operatorGuardProvider);
+
+    final filteredCountries = allCountries.where((country) {
+      final translatedName = l10n.translate(country.name.trim()).toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return translatedName.contains(query);
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NetTide'),
+        title: Text(l10n.translate('nettide')),
         actions: [
+          Consumer(
+            builder: (context, ref, child) {
+              final isBlocked = ref.watch(operatorBlockedProvider).asData?.value ?? false;
+              return Tooltip(
+                message: isBlocked ? l10n.translate('networkBlocked') : l10n.translate('networkProtected'),
+                child: Icon(
+                  isBlocked ? Icons.shield : Icons.shield_outlined,
+                  color: isBlocked ? Colors.red : Colors.white,
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.list_alt),
+            tooltip: l10n.translate('listOfCountries'),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const ModifiedCountriesScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
-            tooltip: 'Settings',
+            tooltip: l10n.translate('settings'),
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) => const SettingsScreen()),
@@ -47,52 +75,64 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.help_outline),
-            tooltip: 'FAQ',
+            tooltip: l10n.translate('faq'),
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) => const FaqScreen()),
               );
             },
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: TextButton.icon(
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-              ),
-              icon: const Icon(Icons.public_off),
-              label: const Text('Disable All Countries'),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Disable All Countries?'),
-                    content: const Text(
-                        'This will disable all mobile operators in the app. You will not be able to use mobile data from any listed operator until you re-enable them. Are you sure?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          final allOperatorNames = allCountries
-                              .expand((country) => country.operators)
-                              .map((op) => op.name)
-                              .toList();
-                          ref.read(settingsProvider.notifier).setAllOperatorsEnabled(allOperatorNames, false);
-                          Navigator.of(context).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('All countries have been disabled.')),
-                          );
-                        },
-                        child: const Text('Disable All', style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-              },
+          IconButton(
+            icon: const Icon(Icons.money_off),
+            tooltip: l10n.translate('enableDisableExpensiveNetworks'),
+            onPressed: () => showDialog(
+              context: context,
+              builder: (context) => const PriceThresholdDialog(),
             ),
+          ),
+          Consumer(
+            builder: (context, ref, child) {
+              final settingsState = ref.watch(settingsProvider);
+              final allOperatorUniqueIds = ref.watch(allCountriesProvider)
+                  .expand((country) => country.operators)
+                  .map((op) => op.uniqueId)
+                  .toList();
+
+              bool areAllEnabled = allOperatorUniqueIds.every((id) => settingsState.operatorSettings[id]?.isEnabled ?? true);
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: IconButton(
+                  icon: Icon(areAllEnabled ? Icons.public : Icons.public_off, color: Colors.white),
+                  tooltip: areAllEnabled ? l10n.translate('disableAll') : l10n.translate('enableAll'),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text(l10n.translate(areAllEnabled ? 'disableAllOperators' : 'enableAllOperators')),
+                        content: Text(l10n.translate('areYouSure', args: {'action': l10n.translate(areAllEnabled ? 'disable' : 'enable')})),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: Text(l10n.translate('cancel')),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              ref.read(settingsProvider.notifier).setAllOperatorsEnabled(allOperatorUniqueIds, !areAllEnabled);
+                              Navigator.of(context).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(areAllEnabled ? l10n.translate('allOperatorsDisabled') : l10n.translate('allOperatorsEnabled'))),
+                              );
+                            },
+                            child: Text(areAllEnabled ? l10n.translate('disableAll') : l10n.translate('enableAll'), style: TextStyle(color: areAllEnabled ? Colors.red : Colors.green)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
           )
         ],
         bottom: PreferredSize(
@@ -106,7 +146,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 });
               },
               decoration: InputDecoration(
-                hintText: 'Search for a country...',
+                hintText: l10n.translate('searchForACountry'),
                 fillColor: Colors.white,
                 filled: true,
                 border: OutlineInputBorder(
@@ -119,44 +159,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(8.0),
-        itemCount: filteredCountries.length,
-        itemBuilder: (context, index) {
-          final country = filteredCountries[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 8.0),
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(16.0),
-              leading: Text(getCountryFlag(country.countryCode), style: const TextStyle(fontSize: 28)),
-              title: Text(country.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => OperatorsScreen(country: country),
+      body: Column(
+        children: [
+          // This space is intentionally left blank.
+          // The status is now shown as an icon in the AppBar.
+          const SizedBox.shrink(),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(8.0),
+              itemCount: filteredCountries.length,
+              itemBuilder: (context, index) {
+                final country = filteredCountries[index];
+                final settings = ref.watch(settingsProvider);
+                final allOperatorsEnabled = country.operators.every((op) => settings.operatorSettings[op.uniqueId]?.isEnabled ?? true);
+
+                return Card(
+                  color: allOperatorsEnabled ? Colors.white : Colors.grey[400],
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(16.0),
+                    leading: Text(getCountryFlag(country.countryCode), style: const TextStyle(fontSize: 28)),
+                    title: Text(l10n.translate(country.name.trim()), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => OperatorsScreen(country: country),
+                        ),
+                      );
+                    },
                   ),
                 );
               },
             ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showDialog(
-          context: context,
-          builder: (context) => PriceThresholdDialog(ref: ref),
-        ),
-        icon: const Icon(Icons.money_off),
-        label: const Text('Disable Expensive'),
+          ),
+        ],
       ),
     );
   }
 }
 
 class PriceThresholdDialog extends ConsumerStatefulWidget {
-  final WidgetRef ref;
-  const PriceThresholdDialog({Key? key, required this.ref}) : super(key: key);
+  const PriceThresholdDialog({Key? key}) : super(key: key);
 
   @override
   _PriceThresholdDialogState createState() => _PriceThresholdDialogState();
@@ -164,37 +208,48 @@ class PriceThresholdDialog extends ConsumerStatefulWidget {
 
 class _PriceThresholdDialogState extends ConsumerState<PriceThresholdDialog> {
   double _currentSliderValue = 1.0;
+  bool _disable = true; // true to disable, false to enable
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: const Text('Disable Expensive Networks'),
+      title: Text(l10n.translate('enableDisableExpensiveNetworks')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Disable networks more expensive than: \$${_currentSliderValue.toStringAsFixed(2)}'),
+          Text(l10n.translate(_disable ? 'disableNetworksMoreThan' : 'enableNetworksMoreThan', args: {'price': '\$${_currentSliderValue.toStringAsFixed(2)}'})),
           Slider(
             value: _currentSliderValue,
             min: 0.1,
             max: 5.0,
             divisions: 49,
-            label: _currentSliderValue.toStringAsFixed(2),
+            label: '\$${_currentSliderValue.toStringAsFixed(2)}',
             onChanged: (double value) {
               setState(() {
                 _currentSliderValue = value;
               });
             },
           ),
+          SwitchListTile(
+            title: Text(_disable ? l10n.translate('disable') : l10n.translate('enable')),
+            value: _disable,
+            onChanged: (value) {
+              setState(() {
+                _disable = value;
+              });
+            },
+          )
         ],
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.translate('cancel')),
         ),
         TextButton(
           onPressed: () {
-            final regionsAsyncValue = widget.ref.read(regionsProvider);
+            final regionsAsyncValue = ref.read(regionsProvider);
             if (regionsAsyncValue.hasValue) {
               final allOperators = regionsAsyncValue.value!
                   .expand((region) => region.countries)
@@ -202,16 +257,16 @@ class _PriceThresholdDialogState extends ConsumerState<PriceThresholdDialog> {
 
               for (final operator in allOperators) {
                 if (operator.pricePerMb > _currentSliderValue) {
-                  widget.ref.read(settingsProvider.notifier).setOperatorEnabled(operator.name, false);
+                  ref.read(settingsProvider.notifier).setOperatorEnabled(operator.uniqueId, !_disable);
                 }
               }
             }
             Navigator.of(context).pop();
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Expensive networks have been disabled.')),
+              SnackBar(content: Text(_disable ? l10n.translate('expensiveNetworksDisabled') : l10n.translate('expensiveNetworksEnabled'))),
             );
           },
-          child: const Text('Disable'),
+          child: Text(_disable ? l10n.translate('disable') : l10n.translate('enable')),
         ),
       ],
     );

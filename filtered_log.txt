@@ -1,0 +1,4 @@
+09-14 15:08:26.473  2137  4031 E AppOps  : Bad call made by uid 10132. Package "com.example.nettide" does not belong to uid 10132.
+09-14 15:08:26.475  2137  4031 E AppOps  : java.lang.SecurityException: Specified package "com.example.nettide" under uid 10132 but it is not
+09-14 15:18:34.226  2137  7269 E AppOps  : Bad call made by uid 10132. Package "com.example.nettide" does not belong to uid 10132.
+09-14 15:18:34.227  2137  7269 E AppOps  : java.lang.SecurityException: Specified package "com.example.nettide" under uid 10132 but it is not
